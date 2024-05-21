@@ -69,18 +69,17 @@ def get_feature_based_label_homophily_score(dataset):
 
 
 def count_distinguishable_tensors(tensor_list):
-    epsilon = torch.finfo(tensor_list[0].dtype).eps  # Machine epsilon for the tensor's dtype
+    #epsilon = torch.finfo(tensor_list[0].dtype).eps  # Machine epsilon for the tensor's dtype
     n = len(tensor_list)
     distinguishable = [True] * n  # Initially assume all tensors are distinguishable
 
     for i in range(n):
         for j in range(i + 1, n):
             if distinguishable[i] or distinguishable[j]:
-                # Check if the absolute difference exceeds epsilon for any element
                 if torch.any(torch.abs(tensor_list[i] - tensor_list[j]) > 0):
                     continue
                 else:
-                    # Mark tensors as indistinguishable if no element differs by more than epsilon
+                    # Mark tensors as indistinguishable
                     distinguishable[i] = distinguishable[j] = False
 
     # Count the number of true entries in distinguishable

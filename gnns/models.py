@@ -35,7 +35,7 @@ class GIN(torch.nn.Module):
             self.convs.append(GINConv(mlp))
 
         self.fc1 = torch.nn.Linear(num_features, num_classes) #*num_layers
-        self.drop = torch.nn.Dropout(p=0.5)
+        #self.drop = torch.nn.Dropout(p=0.5)
 
     def forward(self, graph):
         x, edge_index, batch = graph.x.cuda(), graph.edge_index.cuda(), graph.batch
@@ -46,7 +46,7 @@ class GIN(torch.nn.Module):
             x = conv(x, edge_index)#.relu()
         xr = global_add_pool(x, batch)  # Pooling for graph-level classification
         x = self.fc1(xr)
-        x = self.drop(x)
+        #x = self.drop(x)
         return F.log_softmax(x, dim=1), xr
 
 
@@ -60,7 +60,7 @@ class GCN(torch.nn.Module):
             self.convs.append(GCNConv(num_features, num_features, activation=activation, bias=False))
 
         self.fc = torch.nn.Linear(num_features, num_classes)
-        self.drop = torch.nn.Dropout(p=0.5)
+        #self.drop = torch.nn.Dropout(p=0.5)
 
     def forward(self, data):
         x, edge_index = data.x.cuda(), data.edge_index.cuda()
@@ -68,7 +68,7 @@ class GCN(torch.nn.Module):
         for conv in self.convs:
             x = conv(x, edge_index) #Relu included in layer for metrics
         xr = global_add_pool(x, data.batch)  # Pooling for graph-level classification
-        x = F.dropout(xr, p=0.5, training=self.training)
+        #x = F.dropout(xr, p=0.5, training=self.training)
         x = self.fc(x)
 
         return F.log_softmax(x, dim=1), xr
