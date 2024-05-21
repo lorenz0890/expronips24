@@ -78,7 +78,7 @@ def main(args):
         for name, parameter in model.named_parameters():
             if 'conv' in name:
                 total_bits += parameter.shape[0] * parameter.shape[1] * target_bit_map['all']
-                sparsities[name] = (1 - torch.count_nonzero(torch.clamp(parameter, min=parameter.min() + eps, max=parameter.max() - eps)) / parameter.numel()).detach().cpu().item()
+                sparsities[name] = (1 - torch.count_nonzero(parameter) / parameter.numel()).detach().cpu().item()
             if 'nn.lins' in name or 'lin' in name:
                 total_target_bits += parameter.shape[0] * parameter.shape[1] * target_bit_map[args.target]
         num_target_bits = int(total_target_bits * args.bit_flip_percentage)
@@ -126,11 +126,10 @@ def main(args):
                 metrics = results[-3]
 
                 sparsities = {}
-                eps = torch.finfo(torch.float32).eps
                 for name, param in model.named_parameters():
                     if 'conv' in name:
                         with torch.no_grad():
-                            sparsities[name] = (1 - torch.count_nonzero(torch.clamp(param, min=param.min() + eps, max=param.max() - eps)) / param.numel()).detach().cpu().item()
+                            sparsities[name] = (1 - torch.count_nonzero(param) / param.numel()).detach().cpu().item()
 
                 stats[dirty_key][combo_key]['flipped_bits'] = flipped_bits
                 stats[dirty_key][combo_key]['accuracy'] = results[0]
