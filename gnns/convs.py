@@ -48,62 +48,6 @@ from torch_geometric.utils import (
 )
 
 
-class PGINConv(MessagePassing):
-    # https://dl.acm.org/doi/pdf/10.5555/3586589.3586694 Corollary 16
-    def __init__(self, nn: Callable, eps: float = 0., train_eps: bool = False,
-                 **kwargs):
-        kwargs.setdefault('aggr', 'add')
-        super().__init__(**kwargs)
-        self.nn = nn
-        self.initial_eps = eps
-        self.projector = torch.nn.Linear(nn.lins[-1].weight.shape[0], nn.lins[0].weight.shape[1])
-        torch.nn.init.normal_(self.projector.weight, mean=0.0, std=1.0)
-        torch.nn.init.constant_(self.projector.bias, 0.0)
-        self.projector.requires_grad = False
-
-        if train_eps:
-            self.eps = torch.nn.Parameter(torch.empty(1))
-        else:
-            self.register_buffer('eps', torch.empty(1))
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        super().reset_parameters()
-        reset(self.nn)
-        self.eps.data.fill_(self.initial_eps)
-
-
-    def forward(
-        self,
-        x: Union[Tensor, OptPairTensor],
-        edge_index: Adj,
-        size: Size = None,
-    ) -> Tensor:
-
-        if isinstance(x, Tensor):
-            x = (x, x)
-
-        # propagate_type: (x: OptPairTensor)
-        out = self.propagate(edge_index, x=x, size=size)
-
-        x_r = x[1]
-        if x_r is not None:
-            out = out + (1 + self.eps) * x_r
-
-        return self.projector(self.nn(out))
-
-
-    def message(self, x_j: Tensor) -> Tensor:
-        return x_j
-
-    def message_and_aggregate(self, adj_t: Adj, x: OptPairTensor) -> Tensor:
-        if isinstance(adj_t, SparseTensor):
-            adj_t = adj_t.set_value(None, layout=None)
-        return spmm(adj_t, x[0], reduce=self.aggr)
-
-    def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(nn={self.nn})'
-
 class GCNConv(MessagePassing):
     # Included activation at end for metrics
     _cached_edge_index: Optional[OptPairTensor]

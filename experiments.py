@@ -7,11 +7,11 @@ from torch_geometric.data import DataLoader
 from torch_geometric.datasets import TUDataset
 from torch_geometric.transforms import BaseTransform, OneHotDegree, Compose, RemoveIsolatedNodes
 
-from gnns.utils import train, eval
+from gnns.utils import eval
 from utils.bitflips import flip_bits_across_layers
 from utils.io import generate_filename
 from utils.isotests import partition_complexity
-from gnns.models import GIN, GCN, PGIN
+from gnns.models import GIN, GCN
 
 import torch
 from torch_geometric.datasets import TUDataset
@@ -22,11 +22,11 @@ import networkx as nx
 
 import torch.nn.functional as F
 
-# from isomorphism_tests.weisfeiler_leman import weisfeiler_leman_1wl
+
 from operator import itemgetter
 import copy
 from gnns.transforms import *
-#'MUTAG', 'AIDS', 'PTC_FM', 'PTC_MR', 'NCI1', 'PROTEINS', 'ENZYMES'
+
 import torch
 from torch_geometric.transforms import BaseTransform
 from torch_geometric.utils import degree
@@ -36,10 +36,6 @@ from torch.nn.functional import one_hot
 
 
 def main(args):
-    #import numpy as np
-
-    #exit()
-    #'PGIN' : PGIN,
     target_bit_map = {'sign' : 1, 'exponent' : 9, 'mantissa': 22, 'all' : 32} #number of bits
     models = {'GIN' : GIN, 'GCN' : GCN}
     activations = {'sigmoid' : F.sigmoid, 'relu' : F.relu, 'silu' : F.silu, 'tanh' : F.tanh}
@@ -49,9 +45,9 @@ def main(args):
     else:
         transform = T.Compose([T.ToUndirected(), T.RemoveIsolatedNodes()])  # AddBinaryEncodedDegree(max_degree=128) --> for featureless graphs only
     dataset = TUDataset(root='/tmp/{}'.format(args.dataset), name=args.dataset, use_node_attr=False,
-                        transform=transform, cleaned=True)# pre_transform=create_assign_unique_label_pre_transform())
-    # This is using still original features. We should integrate an option using only one hot encoding (currently, it's binary or integers), only binary, only continues and of differnt
-    # sizes
+                        transform=transform, cleaned=True)
+
+
     num_features = dataset[0].num_node_features
     num_classes = len(torch.unique(torch.cat([g.y.unsqueeze(0) for g in dataset if g.y is not None], dim=0))) #len(dataset)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -71,10 +67,6 @@ def main(args):
         model = models[args.model](num_features, num_classes, depth, activations[args.activation])
         model = model.to(device)
         loss_fn = F.nll_loss
-
-        #epochs=10
-        #optimizer = torch.optim.Adam(model.parameters(), lr=0.001)  # 0.001 for aids
-        #train(model, optimizer, device, loss_fn, epochs, dataset)
 
         results = eval(model, device, loss_fn, dataset, depth=depth)
         metrics = results[-3]
@@ -114,15 +106,14 @@ def main(args):
         stats[clean_key]['agg_out_vars'] = [metrics[key]['o_var'] for key in metrics if '00' in key]
 
         clean_model = copy.deepcopy(model)
-        #print(target_bits, (target_bits)/total_target_bits)
 
         conv_names = ['convs.{}'.format(d) for d in range(depth)]
         combos = []
 
-        for r in range(1, min(args.combo_length+1, len(conv_names) + 1)): # For now, we examine just 1 combo, i.e. each layer individually
+        for r in range(1, min(args.combo_length+1, len(conv_names) + 1)):
             for combo in combinations(conv_names, r):
                 combos.append(combo)
-        for attack_i in range(args.num_dirty): #how many times to attack for each model
+        for attack_i in range(args.num_dirty): #How many times to attack for each model
             dirty_key = 'model{}_dirty{}'.format(model_i, attack_i)
             stats[dirty_key] = {}
             for combo in combos:
@@ -133,7 +124,7 @@ def main(args):
 
                 results = eval(model, device, loss_fn, dataset, depth=depth)
                 metrics = results[-3]
-                #print(combo, flipped_bits, num_target_bits)
+
                 sparsities = {}
                 eps = torch.finfo(torch.float32).eps
                 for name, param in model.named_parameters():
@@ -157,21 +148,7 @@ def main(args):
 
                 stats[dirty_key][combo_key]['agg_out_ranks'] = [metrics[key]['o_rank'] for key in metrics if '00' in key]
                 stats[dirty_key][combo_key]['agg_out_vars'] = [metrics[key]['o_var'] for key in metrics if '00' in key]
-            '''
-            print('CLEAN', results[0])
-            print('1-WL/{} ITER. Subdiv. Ratios:'.format(args.dataset), listprod(list(complexity.values())))
-            print('{}/{} CONV Subdiv. Ratios:'.format(args.model, args.dataset), listprod([metrics[key]['io_refinement'] for key in metrics if '01' in key]))
-            #print('{}/{} AGG Subdiv. Ratios:'.format(args.model, args.dataset), [metrics[key]['io_refinement'] for key in metrics if '00' in key])
-            print('{}/{} COMB Mappings:'.format(args.model, args.dataset), [metrics[key]['io_refinement'] for key in metrics if '10' in key])
 
-            print('{}/{} CONV Out Ranks:'.format(args.model, args.dataset), [metrics[key]['o_rank'] for key in metrics if '01' in key])
-            print('{}/{} AGG Out Ranks:'.format(args.model, args.dataset), [metrics[key]['o_rank'] for key in metrics if '00' in key])
-            print('{}/{} COMB Out Ranks:'.format(args.model, args.dataset), [metrics[key]['o_rank'] for key in metrics if '10' in key])
-
-            print('{}/{} CONV Out Vars:'.format(args.model, args.dataset), [metrics[key]['o_var'] for key in metrics if '01' in key])
-            print('{}/{} AGG Out Vars.:'.format(args.model, args.dataset), [metrics[key]['o_var'] for key in metrics if '00' in key])
-            print('{}/{} COMB Out Vars.:'.format(args.model, args.dataset), [metrics[key]['o_var'] for key in metrics if '10' in key], '\n')
-            '''
     filename = generate_filename(args)
 
     # Writing JSON data

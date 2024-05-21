@@ -4,17 +4,16 @@
 PYTHON_SCRIPT_PATH="experiments.py"
 
 # Define arrays for each argument with possible values
-depths=(3) #2 #4 5
+depths=(3) # GNN layers
 models=("GIN" "GCN")
-activations=("relu" "sigmoid" "silu") # "tanh"
+activations=("relu" "sigmoid" "silu") # Used by GNN
 num_clean=(5)  # Single value, array for consistency in loop generation
 num_dirty=(5)  # Single value, array for consistency
 targets=("exponent" "sign" "mantissa") #"all"
 combo_length=(1)  # Single value, array for consistency
-#bit_flip_percentage=(0.05 0.375 0.625 0.875)
-bit_flip_percentage=(0.95 0.01 0.05 0.1 0.25 0.375 0.5 0.625 0.75 0.875)  # 0.99 0.001  0.05
+
+bit_flip_percentage=(0.95 0.01 0.05 0.1 0.25 0.375 0.5 0.625 0.75 0.875)
 datasets=("MUTAG" "AIDS" "PTC_FM" "PTC_MR" "NCI1" "PROTEINS" "ENZYMES" "MSRC_9" "MSRC_21C" "IMDB-BINARY")
-# "COLLAB" "KKI" "OHSU" "Peking_1" "IMDB-BINARY" "MSRC_9" "MSRC_21C"
 # Calculate the total number of combinations
 total_combinations=$((${#depths[@]} * ${#models[@]} * ${#activations[@]} * ${#num_clean[@]} * ${#num_dirty[@]} * ${#targets[@]} * ${#combo_length[@]} * ${#bit_flip_percentage[@]} * ${#datasets[@]}))
 current_combination=0
@@ -45,7 +44,6 @@ for d in "${depths[@]}"; do
                                 for ds in "${datasets[@]}"; do
                                     let current_combination++
                                     bfpc_int=$(echo "scale=4; $bfpc*100" | bc)
-                                    #fname=$dataset'_bs_'$batch_sz'_lr_'$lr'_folds_'$folds'_epochs_'$epochs'_gnn_'$gnn'_wliter_'$wliter'_dropout_'$dropout'_hyper_True_orbits_False.json'
                                     fname='model_'$m'_depth_'$d'_activation_'$a'_numClean_'$nc'_numDirty_'$nd'_target_'$t'_comboLength_'$cl'_bitFlipPerc_'${bfpc_int%.*}'_dataset_'$ds'.json'
                                     path="./results"  # Replace this with your desired path
                                     full_path="${path}/${fname}"
@@ -63,7 +61,7 @@ for d in "${depths[@]}"; do
                                       echo "Running combination $current_combination / $total_combinations"
                                       echo "Configuration: Depth=$d, Model=$m, Activation=$a, NumClean=$nc, NumDirty=$nd, Target=$t, ComboLength=$cl, BitFlipPerc=$bfpc, Dataset=$ds"
                                       echo "Elapsed time: $elapsed_readable seconds, Estimated remaining time: $estimated_remaining_readable" #$elpased $estimated_remaining seconds"
-                                      # Uncomment the following line to actually run your Python script with the arguments
+                                      # Uncomment the following line to actually run Python script with the arguments
                                       python $PYTHON_SCRIPT_PATH -d $d -m $m -a $a -nc $nc -nd $nd -t $t -cl $cl -bfpc $bfpc -ds $ds
                                     fi
                                 done
